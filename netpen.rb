@@ -26,7 +26,7 @@ module Msf
         results = []
 
         # Grab all services matching 'http' type
-        http_services = framework.db.services.select { |s| s.name.include? 'http' }
+        http_services = framework.db.services.where(state: 'open').select { |s| s.name.include? 'http' }
         http_services.each do |h|
           host = framework.db.hosts(id: h.host_id)[0]
           ip = host.address
@@ -34,7 +34,7 @@ module Msf
         end
 
         # Grab all hosts on port 80 and 443
-        web_services = framework.db.services.select { |s| s.port == 80 || s.port == 443 }
+        web_services = framework.db.services.where(state: 'open').select { |s| s.port == 80 || s.port == 443 }
         web_services.each do |w|
           host = framework.db.hosts(id: w.host_id)[0]
           ip = host.address
@@ -78,7 +78,7 @@ module Msf
         results = []
 
         unless query.nil?
-          http_services = framework.db.services.select { |s| s.name.include? query }
+          http_services = framework.db.services.where(state: 'open').select { |s| s.name.include? query }
           http_services.each do |h|
             host = framework.db.hosts(id: h.host_id)[0]
             ip = host.address
@@ -88,7 +88,7 @@ module Msf
 
         unless ports.nil?
           port_list = Rex::Socket.portspec_crack(ports)
-          port_services = framework.db.services.select { |s| port_list.include? s.port }
+          port_services = framework.db.services.where(state: 'open').select { |s| port_list.include? s.port }
           port_services.each do |p|
             host = framework.db.hosts(id: p.host_id)[0]
             ip = host.address
