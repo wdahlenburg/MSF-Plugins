@@ -18,7 +18,8 @@ module Msf
       def commands
         {
           'grab_web' => 'List all web related hosts in host:port format to be passed into httprobe',
-          'grab_host_port' => 'List all related hosts in host:port format based on searchable parameters'
+          'grab_host_port' => 'List all related hosts in host:port format based on searchable parameters',
+          'list_services' => 'List all open services'
         }
       end
 
@@ -99,6 +100,13 @@ module Msf
         results.uniq!
 
         results.each do |r|
+          print "#{r}\n"
+        end
+      end
+
+      def cmd_list_services(*_args)
+        services = framework.db.services.where(state: 'open').pluck(:name).compact
+        services.map { |s| s.sub('ssl/', '') }.uniq!.each do |r|
           print "#{r}\n"
         end
       end
