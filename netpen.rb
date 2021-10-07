@@ -7,7 +7,6 @@
 
 module Msf
   class Plugin::NetPen < Msf::Plugin
-
     class NetPenDispatcher
       include Msf::Ui::Console::CommandDispatcher
 
@@ -51,8 +50,8 @@ module Msf
 
       def cmd_grab_host_port(*args)
         opts = Rex::Parser::Arguments.new(
-          '-S' => [ false, 'Search for a service string'],
-          '-p' => [ false, 'Inlude specific ports in results (Ex: 80,443-445)']
+          '-S' => [false, 'Search for a service string'],
+          '-p' => [false, 'Inlude specific ports in results (Ex: 80,443-445)']
         )
 
         query = nil
@@ -105,9 +104,18 @@ module Msf
       end
 
       def cmd_list_services(*_args)
-        services = framework.db.services.where(state: 'open').pluck(:name).compact
-        services.map { |s| s.sub('ssl/', '') }.uniq!.each do |r|
-          print "#{r}\n"
+        services = framework.db.services.where(state: 'open').pluck(:name).map { |s| s.sub('ssl/', '') }
+
+        service_dictionary = {}
+
+        services.each_with_index do |s, _i|
+          service_dictionary[s] = services.count(s)
+        end
+
+        service_dictionary = service_dictionary.sort_by { |_k, v| v }.reverse.to_h
+
+        service_dictionary.each do |k, _v|
+          print "#{k}\n"
         end
       end
     end
