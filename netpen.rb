@@ -17,6 +17,7 @@ module Msf
       def commands
         {
           'grab_web' => 'List all web related hosts in host:port format to be passed into httprobe',
+          'grab_all' => 'List all services in host:port format',
           'grab_host_port' => 'List all related hosts in host:port format based on searchable parameters',
           'list_services' => 'List all open services'
         }
@@ -26,7 +27,7 @@ module Msf
         results = []
 
         # Grab all services matching 'http' type
-        http_services = framework.db.services.where(state: 'open').select { |s| s.name.include? 'http' }
+        http_services = framework.db.services.where(state: 'open').select { |s| !s.name.nil? and s.name.include? 'http' }
         http_services.each do |h|
           host = framework.db.hosts(id: h.host_id)[0]
           ip = host.address
@@ -48,6 +49,54 @@ module Msf
         end
       end
 
+      def cmd_grab_all(*args)
+        results = []
+
+        opts = Rex::Parser::Arguments.new(
+          '-f' => [false, 'Optionally write host:port combos to file'],
+          '-h' => [false, 'Display help']
+        )
+
+        file = nil
+        help = false
+
+        opts.parse(args) do |opt, idx, _val|
+          case opt
+          when '-h'
+            help = true
+          when '-f'
+            file = args[idx + 1]
+          end
+        end
+
+        if help
+          print_line('Usage: grab_all [-f combos.txt]')
+          return
+        end
+
+        # Grab all services matching 'http' type
+        services = framework.db.services.where(state: 'open')
+        services.each do |s|
+          host = framework.db.hosts(id: s.host_id)[0]
+          ip = host.address
+          results << "#{ip}:#{s.port}"
+        end
+
+        results.uniq!
+
+        if file.nil?
+          results.each do |r|
+            print "#{r}\n"
+          end
+        else
+          fp = File.open(file, 'w')
+          results.each do |r|
+            fp.write("#{r}\n")
+          end
+          fp.close
+        end
+      end
+
       def cmd_grab_host_port(*args)
         opts = Rex::Parser::Arguments.new(
           '-S' => [false, 'Search for a service string'],
@@ -59,10 +108,6 @@ module Msf
 
         opts.parse(args) do |opt, idx, _val|
           case opt
-          when '-h'
-            print_line('Usage: grab_host_port [-S http] [-p 80,443]')
-            print_line(opts.usage)
-            return
           when '-S'
             query = args[idx + 1]
           when '-p'
@@ -71,14 +116,14 @@ module Msf
         end
 
         if query.nil? && ports.nil?
-          print_line(opts.usage)
+          print_line('Usage: grab_host_port [-S http] [-p 80,443]')
           return
         end
 
         results = []
 
         unless query.nil?
-          http_services = framework.db.services.where(state: 'open').select { |s| s.name.include? query }
+          http_services = framework.db.services.where(state: 'open').select { |s| !s.name.nil? and s.name.include? query }
           http_services.each do |h|
             host = framework.db.hosts(id: h.host_id)[0]
             ip = host.address
@@ -88,7 +133,7 @@ module Msf
 
         unless ports.nil?
           port_list = Rex::Socket.portspec_crack(ports)
-          port_services = framework.db.services.where(state: 'open').select { |s| port_list.include? s.port }
+          port_services = framework.db.services.where(state: 'open').where.not(name: nil).select { |s| port_list.include? s.port }
           port_services.each do |p|
             host = framework.db.hosts(id: p.host_id)[0]
             ip = host.address
@@ -104,7 +149,7 @@ module Msf
       end
 
       def cmd_list_services(*_args)
-        services = framework.db.services.where(state: 'open').pluck(:name).map { |s| s.sub('ssl/', '') }
+        services = framework.db.services.where(state: 'open').where.not(name: nil).pluck(:name).map { |s| s.sub('ssl/', '') }
 
         service_dictionary = {}
 
